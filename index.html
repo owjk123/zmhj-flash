@@ -3,39 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>造梦江湖 - 小宝传奇</title>
+    <title>ZMHJ - Xiao Bao Legend</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { background: #0a0a1a; width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, sans-serif; }
-        body { display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        #loading { position: absolute; z-index: 10; color: #e0e0e0; text-align: center; transition: opacity 0.5s; }
-        #loading .title { font-size: 28px; font-weight: 700; margin-bottom: 8px; background: linear-gradient(135deg, #f6d365, #fda085); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        #loading .subtitle { font-size: 14px; color: #888; margin-bottom: 20px; }
-        #loading .status { font-size: 13px; color: #777; margin-bottom: 10px; }
-        #loading .bar-wrap { width: 320px; height: 3px; background: #222; border-radius: 2px; overflow: hidden; }
-        #loading .bar { width: 0%; height: 100%; background: linear-gradient(90deg, #f6d365, #fda085); border-radius: 2px; transition: width 0.5s; }
-        #game-container { width: 100vw; height: calc(100vw * 590 / 940); max-height: 100vh; max-width: calc(100vh * 940 / 590); position: relative; }
+        html, body {
+            background: #0a0a1a;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        #loading {
+            position: absolute;
+            z-index: 10;
+            color: #e0e0e0;
+            text-align: center;
+            transition: opacity 0.5s;
+        }
+        #loading .title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #f6d365, #fda085);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        #loading .subtitle {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 20px;
+        }
+        #loading .status {
+            font-size: 13px;
+            color: #777;
+            margin-bottom: 10px;
+        }
+        #loading .bar-wrap {
+            width: 320px;
+            height: 3px;
+            background: #222;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        #loading .bar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #f6d365, #fda085);
+            border-radius: 2px;
+            transition: width 0.5s;
+        }
+        #game-container {
+            width: 100vw;
+            height: calc(100vw * 590 / 940);
+            max-height: 100vh;
+            max-width: calc(100vh * 940 / 590);
+            position: relative;
+        }
         #game-container.hidden { opacity: 0; }
     </style>
 </head>
 <body>
     <div id="loading">
-        <div class="title">造梦江湖</div>
-        <div class="subtitle">小宝传奇</div>
-        <div class="status" id="load-status">正在初始化...</div>
+        <div class="title">ZMHJ</div>
+        <div class="subtitle">Xiao Bao Legend</div>
+        <div class="status" id="load-status">Initializing...</div>
         <div class="bar-wrap"><div class="bar" id="load-bar"></div></div>
     </div>
     <div id="game-container" class="hidden"></div>
 
     <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js').then(function(reg) {
-                console.log('[Main] SW registered:', reg.scope);
-            }).catch(function(err) {
-                console.warn('[Main] SW registration failed:', err);
-            });
-        }
-
         var loadStatus = document.getElementById('load-status');
         var loadBar = document.getElementById('load-bar');
         var gameContainer = document.getElementById('game-container');
@@ -44,69 +86,130 @@
         function setStatus(text, pct) {
             loadStatus.textContent = text;
             if (pct !== undefined) loadBar.style.width = pct + '%';
+            console.log('[Status] ' + text + (pct !== undefined ? ' (' + pct + '%)' : ''));
         }
 
-        setStatus('正在加载 Ruffle 引擎...', 5);
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js').then(function(reg) {
+                console.log('[SW] Registered:', reg.scope);
+            }).catch(function(err) {
+                console.warn('[SW] Failed:', err);
+            });
+        }
 
+        // Save system
+        window.zmhjSave = {
+            getSave: function(index) {
+                try {
+                    var data = localStorage.getItem('zmhj_save_' + index);
+                    return data || '';
+                } catch(e) { return ''; }
+            },
+            setSave: function(index, data) {
+                try {
+                    localStorage.setItem('zmhj_save_' + index, data);
+                    return true;
+                } catch(e) { return false; }
+            },
+            getSaveList: function() {
+                try {
+                    var list = [];
+                    for (var i = 0; i < 3; i++) {
+                        var data = localStorage.getItem('zmhj_save_' + i);
+                        if (data) {
+                            list.push({ index: i, datetime: new Date().toISOString().split('T')[0], title: 'Save ' + (i + 1) });
+                        }
+                    }
+                    return JSON.stringify(list);
+                } catch(e) { return '[]'; }
+            },
+            getTime: function() { return Math.floor(Date.now() / 1000).toString(); }
+        };
+
+        setStatus('Loading Ruffle...', 5);
+
+        // Load Ruffle
         var script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/npm/@ruffle-rs/ruffle@0.2.0-nightly.2026.5.14/ruffle.js';
         script.onload = function() {
-            setStatus('Ruffle 就绪，初始化游戏...', 20);
+            console.log('[Ruffle] Script loaded');
+            setStatus('Ruffle ready, initializing...', 20);
             initGame();
         };
         script.onerror = function() {
-            setStatus('CDN加载失败，尝试备用...', 5);
-            var s2 = document.createElement('script');
-            s2.src = 'https://unpkg.com/@ruffle-rs/ruffle@0.2.0-nightly.2026.5.14/ruffle.js';
-            s2.onload = function() { initGame(); };
-            s2.onerror = function() { setStatus('引擎加载失败，请刷新重试', 0); };
-            document.head.appendChild(s2);
+            console.error('[Ruffle] Script load failed');
+            setStatus('Engine load failed', 0);
         };
         document.head.appendChild(script);
 
         function initGame() {
             try {
+                console.log('[Ruffle] Creating player...');
                 window.RufflePlayer = window.RufflePlayer || {};
                 window.RufflePlayer.config = {
                     "upgradeToHttps": false,
-                    "maxExecutionTime": 600,
-                    "logLevel": "warn",
+                    "maxExecutionTime": 300,
+                    "logLevel": "debug",
                     "autoplay": "on",
-                    "openUrlMode": "allow"
+                    "openUrlMode": "allow",
+                    "allowScriptAccess": true,
+                    "backgroundColor": "#0a0a1a",
+                    "publicPath": "./"
                 };
 
                 var ruffle = RufflePlayer.newest().createPlayer();
+                console.log('[Ruffle] Player element:', ruffle.tagName);
                 gameContainer.appendChild(ruffle);
                 
-                setStatus('正在加载游戏...', 30);
+                setStatus('Loading game...', 30);
                 
+                // Load SWF with Promise handling
+                var loadPromise = ruffle.load('./zmhj.swf');
+                console.log('[Ruffle] Load promise:', loadPromise);
+                
+                loadPromise.then(function() {
+                    console.log('[Ruffle] Load succeeded!');
+                    setStatus('Game loaded!', 100);
+                }).catch(function(err) {
+                    console.error('[Ruffle] Load failed:', err);
+                    setStatus('Load failed: ' + err, 0);
+                });
+                
+                // Monitor for canvas
+                var checkCount = 0;
                 var checkInterval = setInterval(function() {
+                    checkCount++;
                     var shadow = ruffle.shadowRoot;
                     if (shadow) {
                         var canvas = shadow.querySelector('canvas');
                         if (canvas) {
+                            console.log('[Ruffle] Canvas found at check #' + checkCount);
                             clearInterval(checkInterval);
-                            setStatus('游戏已加载', 100);
+                            setStatus('Game loaded!', 100);
                             setTimeout(function() {
                                 loadingDiv.style.opacity = '0';
                                 gameContainer.classList.remove('hidden');
                                 setTimeout(function() { loadingDiv.style.display = 'none'; }, 500);
                             }, 1000);
+                        } else {
+                            console.log('[Check #' + checkCount + '] No canvas yet, shadow has ' + shadow.children.length + ' children');
                         }
                     }
-                }, 3000);
+                }, 2000);
 
+                // Timeout
                 setTimeout(function() {
                     clearInterval(checkInterval);
+                    console.log('[Ruffle] Timeout reached');
                     loadingDiv.style.opacity = '0';
                     gameContainer.classList.remove('hidden');
                     setTimeout(function() { loadingDiv.style.display = 'none'; }, 500);
-                }, 180000);
-
-                ruffle.load('./zmhj.swf');
+                }, 120000);
 
             } catch (e) {
-                setStatus('错误: ' + e.message, 0);
+                console.error('[Ruffle] Error:', e);
+                setStatus('Error: ' + e.message, 0);
             }
         }
     </script>
